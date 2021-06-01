@@ -17,20 +17,18 @@ function getPath(url) {
 
 async function robotsCanViewPage(url, userAgent = "scrapeBot") {
     const tld = extractHostname(url, false)
-    const location = path.join(__dirname, "..", "robots", tld + ".robots");
+    const dir = path.join(__dirname, "..", "robots");
+    const location = path.join(dir, tld + ".robots");
     if(!fs.existsSync(location)) {
         try {
             const arr = url.split("/");
-            console.log(arr);
             const urlBase = arr[0] + "//" + arr[2] + "/";
 
             const data = await get(urlBase + "robots.txt");
 
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir);
             fs.writeFileSync(location, data.data);
-
-            console.log(data);
         } catch (ignored) {
-            console.log(ignored);
             return true;
         }
     }

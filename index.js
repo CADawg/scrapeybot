@@ -1,15 +1,15 @@
 require("dotenv").config();
 const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
-const StormDB = require("stormdb");
-const path = require("path");
 const {validateLink, tidyLink} = require("./functions/validateLink");
 const {robotsCanViewPage, extractHostname} = require("./functions/robotsText");
 const mysql = require("mysql2");
 const sleep = require("./functions/sleep");
+const chalk = require("chalk");
+const siteLoadsHeavyJavascript = require("./functions/siteLoadsHeavyJavascript");
 
-const engine = new StormDB.localFileEngine(path.join(__dirname,"storm.db"));
-const db = new StormDB(engine);
+// So we can rethrow true errors.
+class DataBaseError extends Error {}
 
 const dbPoolSync = mysql.createPool({
   connectionLimit: 100,
@@ -22,98 +22,105 @@ const dbPoolSync = mysql.createPool({
 
 const dbPool = dbPoolSync.promise();
 
-let url = null;
-
-dbPoolSync.query("SELECT `id`,`link`,(SELECT url FROM indexed WHERE indexed.id = parent) as parent_link,`failed`,`unindexable` FROM unindexed WHERE unindexable = 0 AND failed = 0 ORDER BY RAND() LIMIT 1;", function (err, result) {
-  if (err || result.length === 0) throw new Error("No Sites To Index or Database Error!");
-  url = result[0];
-});
+let nextUrl = null;
 
 (async function() {
-let puppet = null;
+  [[nextUrl]] = await dbPool.query("SELECT `id`,`link`,(SELECT url FROM indexed WHERE indexed.id = parent) as parent_link,`failed`,`unindexable`,`alreadyindexed` FROM unindexed WHERE unindexable = 0 AND failed = 0 AND alreadyindexed = 0 ORDER BY RAND() LIMIT 1;");
 
-while (url !== null) {
-  if (!await robotsCanViewPage(url, process.env.USER_AGENT)) {
-    try {
-      await dbPool.query("UPDATE `unindexed` SET `unindexable`=1 WHERE `id`=?", [url.id]);
-      console.log("Link:", url, "avoided due to robots.txt");
-    } catch (ignored) {}
-    continue;
-  }
-
-  if (db.get("visited").get(extractHostname(url, true)).value() === undefined) {
-    db.get("visited").set(extractHostname(url, true), []);
-  }
-
-  if (db.get("visited").get(extractHostname(url, true)).value().length < 10 && !db.get("visitedURL").value().includes(url)) {
-    console.log("Loading:" , url);
-
-    if (puppet === null) {
-      puppet = puppeteer
+  const puppet = puppeteer
       .launch({ headless: true, args: process.env.USE_PROXY.toLowerCase() === true ? [`--proxy-server=${process.env.PROXY}`] : [] })
-      .then(function(browser) {return browser.newPage();})
+      .then(async function(browser) {return browser.newPage();});
+
+
+  while (nextUrl !== null && nextUrl !== undefined) {
+    if (!await robotsCanViewPage(nextUrl.link, process.env.USER_AGENT)) {
+      try {
+        await dbPool.query("UPDATE `unindexed` SET `unindexable`=1 WHERE `id`=?", [nextUrl.id]);
+        console.log(chalk.yellow("Link:"), chalk.blue(nextUrl.link), chalk.yellow("avoided due to robots.txt"));
+        [[nextUrl]] = await dbPool.query("SELECT `id`,`link`,(SELECT url FROM indexed WHERE indexed.id = parent) as parent_link,`failed`,`unindexable`,`alreadyindexed` FROM unindexed WHERE unindexable = 0 AND failed = 0 AND alreadyindexed = 0 ORDER BY RAND() LIMIT 1;");
+        continue;
+      } catch (ignored) {
+        throw new DataBaseError("Database Unavailable.");
+      }
     }
+
+    console.log(chalk.yellow("Loading:") , chalk.blue(nextUrl.link));
 
     await puppet
     .then(async function(page) {
-      return await page.goto(url, {timeout: 20000}).then(async function() {
-        console.log("Loaded:" , url);
-        if (url.includes("twitter.com")) {
-          await sleep(5000);
+      try {
+        return await page.goto(nextUrl.link, {timeout: parseInt(process.env.PAGE_TIMEOUT)}).then(async function () {
+          console.log(chalk.yellow("Loaded:"), chalk.blue(nextUrl.link));
+          if (siteLoadsHeavyJavascript(nextUrl.link)) {
+            console.log(chalk.bgBlue.white("Site Loads Heavy Javascript, Waiting 5 Seconds!"));
+            await sleep(5000);
+          }
+          return page.content();
+        });
+      } catch (error) {
+        if (error.message.match(/Navigation timeout of [0-9]+ ms exceeded/) || error.message.match(/net::ERR/)) {
+          try {
+            await dbPool.query("UPDATE `unindexed` SET `failed`=1 WHERE `id`=?", [nextUrl.id]);
+            console.log(chalk.red("Link:"), chalk.blue(nextUrl.link), chalk.red("failed to load. Ignoring."));
+          } catch (ignored) {
+            throw new DataBaseError("Database Unavailable.");
+          }
+        } else {
+          throw error;
         }
-        return page.content();
-      });
+        return false;
+      }
     })
-    .then(function(html) {
-      let $ = cheerio.load(html);
-      //console.log(html);
+    .then(async function(html) {
+      if (html !== false) {
+        let $ = cheerio.load(html);
 
         let title = "", description = "", links = [];
         try {
           title = $("head>title").text();
           description = $('meta[name=description]').attr('content');
-          $('a').each(function() {
+          $('a').each(function () {
             let href = $(this).attr('href');
             href = tidyLink(href);
-            if(!urlsToVisit.includes(href)) {
-              try {
-              href = new URL(href, url).toString();
+            try {
+              href = new URL(href, nextUrl.link).toString();
 
               try {
                 let rel = $(this).attr('rel');
                 if (rel.includes("noindex")) {
                   return;
                 }
-              } catch (ignored) {}
+              } catch (ignored) {
+              }
 
               if (validateLink(href)) {
-                urlsToVisit.push(href);
                 links.push(href);
               }
-              } catch (ignored) {}
+            } catch (ignored) {
             }
           });
         } catch (ignored) {
-          console.log(ignored);
         }
 
-        db.get("visited").get(extractHostname(url, true)).push({
-          title, url, description, links
-        });
-        db.get("visitedURL").push(url);
-        db.set("unvisited", urlsToVisit);
-        db.save();
+        try {
+          await dbPool.query("INSERT IGNORE `indexed` SET ?", {title, url: nextUrl.link, description});
+          await dbPool.query("UPDATE `unindexed` SET `alreadyindexed`=1 WHERE `id`=?", [nextUrl.id]);
 
-        console.log({
-          title, url, description, links
-        });
+          for (let link in links) {
+            if (links.hasOwnProperty(link)) {
+              await dbPool.query("INSERT IGNORE `unindexed` SET ?", {link: links[link], parent: nextUrl.id});
+              console.log(chalk.red("Found Link:"), chalk.blue(links[link]));
+            }
+          }
+        } catch (ignored) {
+          throw new DataBaseError("Database Unavailable.");
+        }
+
+        console.log(chalk.yellow(title), chalk.blue("\r\n", nextUrl.link), chalk.yellow("\r\n", description), chalk.green(links.length) + chalk.yellow(" links"));
+      }
     })
-    .catch(function(err) {
-      console.log(err);
-      db.get("errored").push(url);
-      db.save();
-    });
-
+    .catch(async function(error) {throw error});
+    [[nextUrl]] = await dbPool.query("SELECT `id`,`link`,(SELECT url FROM indexed WHERE indexed.id = parent) as parent_link,`failed`,`unindexable`,`alreadyindexed` FROM unindexed WHERE unindexable = 0 AND failed = 0 AND alreadyindexed = 0 ORDER BY RAND() LIMIT 1;");
   }
-}
+  process.exit(0);
 })();
