@@ -3,7 +3,6 @@ const parse = require('robots-txt-parse');
 const guard = require('robots-txt-guard');
 const path = require("path");
 const fs = require("fs");
-const https = /^https:\/\/.*/
 
 function getPath(url) {
     const arr = url.split("/");
@@ -18,7 +17,7 @@ function getPath(url) {
 
 async function robotsCanViewPage(url, userAgent = "scrapeBot") {
     const tld = extractHostname(url, false)
-    const location = path.join(__dirname, "robots", tld + ".robots");
+    const location = path.join(__dirname, "..", "robots", tld + ".robots");
     if(!fs.existsSync(location)) {
         try {
             const arr = url.split("/");
