@@ -18,6 +18,7 @@ function removeAfterToken(str, token=".") {
 }
 
 function tidyLink(url) {
+    if (url.includes("#")) throw new Error("URL Includes #");
     return removeAfterToken(url, '#');
 }
 

@@ -77,12 +77,12 @@ let nextUrl = null;
 
         let title = "", description = "", links = [];
         try {
-          title = $("head>title").text();
-          description = $('meta[name=description]').attr('content');
+          title = ($("head>title").text() || "").trim();
+          description = ($('meta[name=description]').attr('content') || "").trim();
           $('a').each(function () {
             let href = $(this).attr('href');
-            href = tidyLink(href);
             try {
+              href = tidyLink(href);
               href = new URL(href, nextUrl.link).toString();
 
               try {
