@@ -82,8 +82,9 @@ let nextUrl = null;
           $('a').each(function () {
             let href = $(this).attr('href');
             try {
-              href = tidyLink(href);
               href = new URL(href, nextUrl.link).toString();
+              href = tidyLink(href);
+              console.log("href")
 
               try {
                 let rel = $(this).attr('rel');
