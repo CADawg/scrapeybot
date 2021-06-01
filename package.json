@@ -1,0 +1,24 @@
+{
+  "name": "scrapey2electricboogaloo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "run": "node ."
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.21.1",
+    "chalk": "^4.1.1",
+    "cheerio": "^1.0.0-rc.9",
+    "dotenv": "^10.0.0",
+    "mysql2": "^2.2.5",
+    "puppeteer": "^9.1.1",
+    "robots-txt-guard": "^1.0.2",
+    "robots-txt-parse": "^2.0.1",
+    "socks-proxy-agent": "^5.0.0",
+    "stormdb": "^0.4.1"
+  }
+}
