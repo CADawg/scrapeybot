@@ -1,11 +1,16 @@
 const axios = require('axios');
-const SocksProxyAgent = require('socks-proxy-agent');// replace with your proxy's hostname and port
-const proxyOptions = `socks://${process.env.PROXY_HOST}:${process.env.PROXY_PORT}`;
+const SocksProxyAgent = require('socks-proxy-agent');
+const proxyOptions = process.env.PROXY;
 
 async function get(url) {
     const httpsAgent = new SocksProxyAgent(proxyOptions);
-    const client = axios.create({httpsAgent, httpAgent: httpsAgent});
-    console.log(client);
+    let client;
+    if (process.env.USE_PROXY.toLowerCase() === "true") {
+        client = axios.create({httpsAgent, httpAgent: httpsAgent});
+    } else {
+        client = axios.create({});
+    }
+
     return await client.get(url);
 }
 

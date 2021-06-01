@@ -4,7 +4,7 @@ const cheerio = require('cheerio');
 const StormDB = require("stormdb");
 const path = require("path");
 const {validateLink, tidyLink} = require("./functions/validateLink");
-const {robotsCanViewPage, extractHostname, getPath} = require("./functions/robotsText");
+const {robotsCanViewPage, extractHostname} = require("./functions/robotsText");
 const mysql = require("mysql2");
 const sleep = require("./functions/sleep");
 
@@ -50,7 +50,7 @@ while (url !== null) {
 
     if (puppet === null) {
       puppet = puppeteer
-      .launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', `--proxy-server=socks://${process.env.PROXY_HOST}:${process.env.PROXY_PORT}`] })
+      .launch({ headless: true, args: process.env.USE_PROXY.toLowerCase() === true ? [`--proxy-server=${process.env.PROXY}`] : [] })
       .then(function(browser) {return browser.newPage();})
     }
 
