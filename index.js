@@ -27,8 +27,12 @@ let nextUrl = null;
 (async function() {
   [[nextUrl]] = await dbPool.query("SELECT `id`,`link`,(SELECT url FROM indexed WHERE indexed.id = parent) as parent_link,`failed`,`unindexable`,`alreadyindexed` FROM unindexed WHERE unindexable = 0 AND failed = 0 AND alreadyindexed = 0 ORDER BY RAND() LIMIT 1;");
 
+  let args = [];
+  if (process.env.USE_PROXY.toLowerCase() === "true") args.push(`--proxy-server=${process.env.PROXY}`);
+  if (process.env.CAN_SANDBOX.toLowerCase() === "false") args.push("--no-sandbox");
+
   const puppet = puppeteer
-      .launch({ headless: true, args: process.env.USE_PROXY.toLowerCase() === true ? [`--proxy-server=${process.env.PROXY}`] : [] })
+      .launch({ headless: true, args })
       .then(async function(browser) {return browser.newPage();});
 
 
