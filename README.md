@@ -10,5 +10,3 @@ A Simple Bot For Scraping Websites for Meta Descriptions and Titles, for a simpl
 - Use [Scrape Engine](https://github.com/Snaddyvitch-Dispenser/scrape-engine) To Search the Database
 - ???
 - 🥖 Profit 🥖
-
-<sub>🄯 Copyleft - All Wrongs Reversed</sub>
