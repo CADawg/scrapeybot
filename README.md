@@ -11,4 +11,4 @@ A Simple Bot For Scraping Websites for Meta Descriptions and Titles, for a simpl
 - ???
 - 🥖 Profit 🥖
 
-<sub>🄯 Copyleft - All Rights Reversed</sub>
+<sub>🄯 Copyleft - All Wrongs Reversed</sub>
