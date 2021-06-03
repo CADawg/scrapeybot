@@ -9,7 +9,7 @@ const chalk = require("chalk");
 const siteLoadsHeavyJavascript = require("./functions/siteLoadsHeavyJavascript");
 const canSaveUrl = require("./functions/badDomains");
 
-const queryGet = "SELECT g.* FROM unindexed g JOIN(SELECT id FROM unindexed WHERE unindexable = 0 AND failed = 0 AND alreadyindexed = 0 AND priority = (SELECT MAX(priority) FROM unindexed) and RAND() < (SELECT ((1 / COUNT(*)) * 10) FROM unindexed where unindexable = 0 AND failed = 0 AND alreadyindexed = 0 AND priority = (SELECT MAX(priority) FROM unindexed)) ORDER BY RAND() LIMIT 1) AS z ON z.id= g.id where unindexable = 0 AND failed = 0 AND alreadyindexed = 0 AND priority = (SELECT MAX(priority) FROM unindexed);";
+const queryGet = "SELECT g.* FROM unindexed g JOIN(SELECT id FROM unindexed WHERE unindexable = 0 AND failed = 0 AND alreadyindexed = 0 AND priority = (SELECT MAX(priority) FROM unindexed where unindexable = 0 AND failed = 0 AND alreadyindexed = 0) and RAND() < (SELECT ((1 / COUNT(*)) * 10) FROM unindexed where unindexable = 0 AND failed = 0 AND alreadyindexed = 0 AND priority = (SELECT MAX(priority) FROM unindexed where unindexable = 0 AND failed = 0 AND alreadyindexed = 0)) ORDER BY RAND() LIMIT 1) AS z ON z.id= g.id where unindexable = 0 AND failed = 0 AND alreadyindexed = 0 AND priority = (SELECT MAX(priority) FROM unindexed where unindexable = 0 AND failed = 0 AND alreadyindexed = 0);";
 
 // So we can rethrow true errors.
 class DataBaseError extends Error {}
