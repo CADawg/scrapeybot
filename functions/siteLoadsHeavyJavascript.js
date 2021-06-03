@@ -1,5 +1,6 @@
 const heavySites = [
-    /^https?:\/\/(www\.)?twitter\.com.*$/
+    /^https?:\/\/(www\.)?twitter\.com.*$/,
+    /^https?:\/\/(www\.)?peakd\.com.*$/
 ]
 
 module.exports = function siteLoadsHeavyJavascript(url) {
