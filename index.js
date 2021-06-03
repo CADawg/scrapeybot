@@ -26,7 +26,7 @@ const dbPool = dbPoolSync.promise();
 let nextUrl = null;
 
 (async function() {
-  [[nextUrl]] = await dbPool.query("SELECT `id`,`link`,(SELECT url FROM indexed WHERE indexed.id = parent) as parent_link,`failed`,`unindexable`,`alreadyindexed` FROM unindexed WHERE unindexable = 0 AND failed = 0 AND alreadyindexed = 0 ORDER BY RAND() LIMIT 1;");
+  [[nextUrl]] = await dbPool.query("SELECT g.* FROM unindexed g JOIN(SELECT id FROM unindexed WHERE RAND() < (SELECT ((1 / COUNT(*)) * 10) FROM unindexed) AND unindexable = 0 AND failed = 0 AND alreadyindexed = 0 AND priority = (SELECT MAX(priority) FROM unindexed) ORDER BY RAND() LIMIT 1) AS z ON z.id= g.id;");
 
   let args = [];
   if (process.env.USE_PROXY.toLowerCase() === "true") args.push(`--proxy-server=${process.env.PROXY}`);
@@ -125,7 +125,7 @@ let nextUrl = null;
       }
     })
     .catch(async function(error) {throw error});
-    [[nextUrl]] = await dbPool.query("SELECT `id`,`link`,(SELECT url FROM indexed WHERE indexed.id = parent) as parent_link,`failed`,`unindexable`,`alreadyindexed` FROM unindexed WHERE unindexable = 0 AND failed = 0 AND alreadyindexed = 0 ORDER BY RAND() LIMIT 1;");
+    [[nextUrl]] = await dbPool.query("SELECT g.* FROM unindexed g JOIN(SELECT id FROM unindexed WHERE RAND() < (SELECT ((1 / COUNT(*)) * 10) FROM unindexed) AND unindexable = 0 AND failed = 0 AND alreadyindexed = 0 AND priority = (SELECT MAX(priority) FROM unindexed) ORDER BY RAND() LIMIT 1) AS z ON z.id= g.id;");
   }
   process.exit(0);
 })();
