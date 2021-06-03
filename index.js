@@ -9,6 +9,8 @@ const chalk = require("chalk");
 const siteLoadsHeavyJavascript = require("./functions/siteLoadsHeavyJavascript");
 const canSaveUrl = require("./functions/badDomains");
 
+const queryGet = "SELECT g.* FROM unindexed g JOIN(SELECT id FROM unindexed WHERE unindexable = 0 AND failed = 0 AND alreadyindexed = 0 AND priority = (SELECT MAX(priority) FROM unindexed) and RAND() < (SELECT ((1 / COUNT(*)) * 10) FROM unindexed where unindexable = 0 AND failed = 0 AND alreadyindexed = 0 AND priority = (SELECT MAX(priority) FROM unindexed)) ORDER BY RAND() LIMIT 1) AS z ON z.id= g.id where unindexable = 0 AND failed = 0 AND alreadyindexed = 0 AND priority = (SELECT MAX(priority) FROM unindexed);";
+
 // So we can rethrow true errors.
 class DataBaseError extends Error {}
 
@@ -26,7 +28,7 @@ const dbPool = dbPoolSync.promise();
 let nextUrl = null;
 
 (async function() {
-  [[nextUrl]] = await dbPool.query("SELECT g.* FROM unindexed g JOIN(SELECT id FROM unindexed WHERE RAND() < (SELECT ((1 / COUNT(*)) * 10) FROM unindexed) AND unindexable = 0 AND failed = 0 AND alreadyindexed = 0 AND priority = (SELECT MAX(priority) FROM unindexed) ORDER BY RAND() LIMIT 1) AS z ON z.id= g.id;");
+  [[nextUrl]] = await dbPool.query(queryGet);
 
   let args = [];
   if (process.env.USE_PROXY.toLowerCase() === "true") args.push(`--proxy-server=${process.env.PROXY}`);
@@ -42,7 +44,7 @@ let nextUrl = null;
       try {
         await dbPool.query("UPDATE `unindexed` SET `unindexable`=1 WHERE `id`=?", [nextUrl.id]);
         console.log(chalk.yellow("Link:"), chalk.blue(nextUrl.link), chalk.yellow("avoided due to robots.txt"));
-        [[nextUrl]] = await dbPool.query("SELECT `id`,`link`,(SELECT url FROM indexed WHERE indexed.id = parent) as parent_link,`failed`,`unindexable`,`alreadyindexed` FROM unindexed WHERE unindexable = 0 AND failed = 0 AND alreadyindexed = 0 ORDER BY RAND() LIMIT 1;");
+        [[nextUrl]] = await dbPool.query(queryGet);
         continue;
       } catch (ignored) {
         throw new DataBaseError("Database Unavailable.");
@@ -125,7 +127,7 @@ let nextUrl = null;
       }
     })
     .catch(async function(error) {throw error});
-    [[nextUrl]] = await dbPool.query("SELECT g.* FROM unindexed g JOIN(SELECT id FROM unindexed WHERE RAND() < (SELECT ((1 / COUNT(*)) * 10) FROM unindexed) AND unindexable = 0 AND failed = 0 AND alreadyindexed = 0 AND priority = (SELECT MAX(priority) FROM unindexed) ORDER BY RAND() LIMIT 1) AS z ON z.id= g.id;");
+    [[nextUrl]] = await dbPool.query(queryGet);
   }
   process.exit(0);
 })();
