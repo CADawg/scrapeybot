@@ -7,6 +7,7 @@ const mysql = require("mysql2");
 const sleep = require("./functions/sleep");
 const chalk = require("chalk");
 const siteLoadsHeavyJavascript = require("./functions/siteLoadsHeavyJavascript");
+const canSaveUrl = require("./functions/badDomains");
 
 // So we can rethrow true errors.
 class DataBaseError extends Error {}
@@ -92,7 +93,7 @@ let nextUrl = null;
 
               try {
                 let rel = $(this).attr('rel');
-                if (rel.includes("noindex")) {
+                if (rel.includes("noindex")  || canSaveUrl(href) === false) {
                   return;
                 }
               } catch (ignored) {
