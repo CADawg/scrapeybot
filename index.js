@@ -89,7 +89,6 @@ let nextUrl = null;
             try {
               href = new URL(href, nextUrl.link).toString();
               href = tidyLink(href);
-              console.log("href")
 
               try {
                 let rel = $(this).attr('rel');
